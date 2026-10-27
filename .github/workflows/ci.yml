@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static checks (no ROS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sixeyes_ros2
+      - uses: actions/checkout@v4
+        with:
+          repository: studiosanka/sixeyes_description
+          path: sixeyes_description
+      - uses: actions/checkout@v4
+        with:
+          repository: studiosanka/sixeyes-host
+          path: sixeyes-host
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml
+      - run: python sixeyes_ros2/scripts/check.py
+
+  ros:
+    name: ROS 2 Jazzy build and smoke test
+    runs-on: ubuntu-latest
+    container: ros:jazzy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sixeyes_ros2
+      - uses: actions/checkout@v4
+        with:
+          repository: studiosanka/sixeyes_description
+          path: sixeyes_description
+      - name: Install dependencies
+        run: |
+          apt-get update
+          rosdep update
+          rosdep install --from-paths sixeyes_ros2 sixeyes_description --ignore-src -y
+          apt-get install -y liburdfdom-tools
+      - name: Build
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          colcon build --base-paths sixeyes_ros2 sixeyes_description --event-handlers console_direct+
+      - name: The model is valid for every hardware choice
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          . install/setup.sh
+          for hw in mock real gazebo; do
+            xacro "$(ros2 pkg prefix sixeyes_bringup)/share/sixeyes_bringup/urdf/sixeyes_system.urdf.xacro" \
+              hardware:=$hw port:=/dev/ttyACM0 controllers_file:=/tmp/controllers.yaml > /tmp/$hw.urdf
+            check_urdf /tmp/$hw.urdf
+          done
+      - name: Smoke test (pretend arm)
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          . install/setup.sh
+          bash sixeyes_ros2/scripts/smoke_test.sh

@@ -1,0 +1,8 @@
+# The arm has 5 joints, so it cannot reach every position AND orientation. position_only_ik tells MoveIt's
+# KDL solver to solve for the position of the tool and ignore its orientation. (Orientation can still be
+# set with joint-space goals.) Change it to false to ask for full poses; most will then fail.
+arm:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.05
+  position_only_ik: true

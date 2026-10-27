@@ -1,0 +1,7 @@
+<library path="sixeyes_hardware">
+  <class name="sixeyes_hardware/SixEyesSystem"
+         type="sixeyes_hardware::SixEyesSystem"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>The SixEyes robot arm over USB: five joints in radians and a gripper.</description>
+  </class>
+</library>

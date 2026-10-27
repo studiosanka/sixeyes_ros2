@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!--
+  The arm's model (from sixeyes_description) plus its ros2_control setup.
+  Arguments:
+    hardware          mock (pretend arm, no hardware) | real (the arm over USB) | gazebo (Gazebo simulation)
+    port              the arm's USB port, for real hardware, e.g. /dev/ttyACM0
+    controllers_file  path to controllers.yaml (needed by Gazebo to start the controllers)
+  Only the hardware plugin changes between the three: the controllers and MoveIt setup are the same.
+  NOT TESTED with ROS 2 yet.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sixeyes">
+  <xacro:arg name="hardware" default="mock"/>
+  <xacro:arg name="port" default=""/>
+  <xacro:arg name="controllers_file" default=""/>
+  <xacro:property name="hardware" value="$(arg hardware)"/>
+
+  <xacro:include filename="$(find sixeyes_description)/urdf/sixeyes.urdf.xacro"/>
+
+  <!-- MoveIt and ros2_control want a fixed world frame to hang the arm on. -->
+  <link name="world"/>
+  <joint name="world_joint" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:macro name="position_joint" params="name">
+    <joint name="${name}">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+  </xacro:macro>
+
+  <ros2_control name="SixEyes" type="system">
+    <hardware>
+      <xacro:if value="${hardware == 'real'}">
+        <plugin>sixeyes_hardware/SixEyesSystem</plugin>
+        <param name="port">$(arg port)</param>
+        <param name="gripper_stroke_m">0.04</param>
+        <param name="max_step_rad">0.35</param>
+        <param name="home_on_activate">true</param>
+      </xacro:if>
+      <xacro:if value="${hardware == 'mock'}">
+        <plugin>mock_components/GenericSystem</plugin>
+      </xacro:if>
+      <xacro:if value="${hardware == 'gazebo'}">
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </xacro:if>
+    </hardware>
+    <xacro:position_joint name="base"/>
+    <xacro:position_joint name="shoulder"/>
+    <xacro:position_joint name="elbow"/>
+    <xacro:position_joint name="wrist_pitch"/>
+    <xacro:position_joint name="wrist_roll"/>
+    <xacro:position_joint name="gripper"/>
+  </ros2_control>
+
+  <xacro:if value="${hardware == 'gazebo'}">
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>$(arg controllers_file)</parameters>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+</robot>
